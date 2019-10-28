@@ -669,9 +669,12 @@ class tool_coursearchiver_processor {
                 $record->owners = $ownerslist;
                 $record->timetodelete = 0;
                 $DB->insert_record('tool_coursearchiver_archived', $record, false);
-
-                // Remove Course.
-                delete_course($obj["course"]->id, false);
+				
+				//BRAD NIELSEN Using a config option to determine if courses are deleted in the archival process.
+				$config2 = get_config('tool_coursearchiver');
+				if ($config2->removeduringarchivalsetting){
+                	delete_course($obj["course"]->id, false);
+				}
             } else {
                 throw new Exception(get_string('errorarchivefile', 'tool_coursearchiver'));
             }

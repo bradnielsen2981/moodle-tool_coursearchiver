@@ -38,11 +38,10 @@ $string['archiveemail'] = 'Send "Course to be Archived" Emails';
 $string['archivelist'] = 'Course Archives';
 $string['archivelocation'] = 'Course archive subdirectory';
 $string['back'] = 'Start Over';
-
 $string['cannotdeletecoursenotexist'] = 'Cannot delete a course that does not exist';
 $string['category'] = 'Category';
 $string['cli_cannot_continue'] = "\nSTOPPED: Not enough data to continue.\n";
-$string['cli_question_archive'] = 'Archive and delete these {$a} courses?';
+$string['cli_question_archive'] = 'Archive these {$a} courses?';
 $string['cli_question_archiveemail'] = 'Send these {$a} users a "Course to be archived" email?';
 $string['cli_question_delete'] = 'Delete these {$a} courses?';
 $string['cli_question_hide'] = 'Hide these {$a} courses?';
@@ -176,6 +175,8 @@ $string['step3savetitle'] = '{$a} email list save';
 $string['unknownerror'] = 'The process has resulted in an error that requires a restart of the process.';
 
 // SETTINGS.
+$string['removeduringarchivalsetting'] = 'Delete courses during archival';
+$string['removeduringarchivalsetting_help'] = 'Do you wish the course to be deleted after archive has been completed';
 $string['coursearchiver_settings'] = 'Course Archiver Settings';
 $string['hidewarningemailsetting'] = 'Default Email Warning for Course Hiding';
 $string['hidewarningemailsetting_help'] = 'This is the contents of an email that will be sent to all teachers of a course that is selected to be hidden.';

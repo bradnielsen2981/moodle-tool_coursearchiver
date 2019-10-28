@@ -56,6 +56,11 @@ if ($hassiteconfig) {
     $settings->add(new admin_setting_configtext('tool_coursearchiver/optoutmonthssetting',
                    get_string('optoutmonthssetting', 'tool_coursearchiver'),
                    get_string('optoutmonthssetting_help', 'tool_coursearchiver'), 24, PARAM_INT));
+	
+	$settings->add(new admin_setting_configcheckbox('tool_coursearchiver/removeduringarchivalsetting',
+                   get_string('removeduringarchivalsetting', 'tool_coursearchiver'),
+                   get_string('removeduringarchivalsetting_help', 'tool_coursearchiver'), 1, PARAM_INT)); //default = 1 = True
+
 
     // Archive deletion delay in days.
     $settings->add(new admin_setting_configtext('tool_coursearchiver/delaydeletesetting',
