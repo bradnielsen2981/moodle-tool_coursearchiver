@@ -603,7 +603,8 @@ class tool_coursearchiver_processor {
                 $suffix = '-ID-'.$obj["course"]->id.'-IDNUM-'.$obj["course"]->idnumber;
             }
 
-            $archivefile = date("Y-m-d") . "{$suffix}-{$safeshort}.mbz";
+			//This is a problem if courses have been archived twice in the same day which can happen if delete is not enabled through config - thus added time
+            $archivefile = date("Y-m-d H:i:s")."{$suffix}-{$safeshort}.mbz";
             $archivepath = trim(str_replace(str_split(':*?"<>|'),
                                             '',
                                             get_config('tool_coursearchiver', 'coursearchiverpath')),
