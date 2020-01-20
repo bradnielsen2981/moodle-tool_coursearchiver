@@ -10,7 +10,7 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
+//B
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -543,10 +543,7 @@ class tool_coursearchiver_processor {
                 } else {
                     if ($this->exists($course)) {
                         $owners[$user->id]['user'] = $user;
-                        $owners[$user->id]['courses'] = array($course => $DB->get_record('course',
-                                                                                         array('id' => $course),
-                                                                                         '*',
-                                                                                         IGNORE_MISSING));
+                        $owners[$user->id]['courses'] = array($course => $DB->get_record('course',array('id' => $course),'*',IGNORE_MISSING));
                     }
                 }
             }
@@ -592,30 +589,15 @@ class tool_coursearchiver_processor {
 
         $coursetobackup = $obj["course"]->id; // Set this to one existing choice cmid in your dev site.
         $userdoingthebackup   = $admin->id; // Set this to the id of your admin account.
-
+		
+	    //TRY TO CREATE OR COPY AUTOMATED BACKUP
         try {
-            // Prepare path.
-            $matchers = array('/\s/', '/\//', '/\;/', '/\:/', '/\?/', '/\%/', '/\*/', '/\|/', '/\</', '/\>/');
-            $safeshort = preg_replace($matchers, '-', $obj["course"]->shortname);
-            if (empty($obj["course"]->idnumber)) {
-                $suffix = '-ID-'.$obj["course"]->id;
-            } else {
-                $suffix = '-ID-'.$obj["course"]->id.'-IDNUM-'.$obj["course"]->idnumber;
-            }
-
-			//This is a problem if courses have been archived twice in the same day which can happen if delete is not enabled through config - thus added time
-            $archivefile = date("Y-m-d H:i:s")."{$suffix}-{$safeshort}.mbz";
-            $archivepath = trim(str_replace(str_split(':*?"<>|'),
-                                            '',
-                                            get_config('tool_coursearchiver', 'coursearchiverpath')),
-                                "/\\");
-
+            //Prepare archive path
+            $archivepath = trim(str_replace(str_split(':*?"<>|'),'',get_config('tool_coursearchiver','coursearchiverpath')),"/\\");
             // Check for custom folder.
             $folder = $this->get_archive_folder();
-
-            // Final full path of file.
+            // Final full path
             $path = $CFG->dataroot . '/' . $archivepath . '/' . $folder;
-
             // If the path doesn't exist, make it so!
             if (!is_dir($path)) {
                 umask(0000);
@@ -624,18 +606,45 @@ class tool_coursearchiver_processor {
                     throw new Exception(get_string('errorarchivepath', 'tool_coursearchiver'));
                 }
             }
-
-            // Perform Backup.
-            $bc = new backup_controller(backup::TYPE_1COURSE, $coursetobackup, backup::FORMAT_MOODLE,
-                                        backup::INTERACTIVE_NO, backup::MODE_AUTOMATED, $userdoingthebackup);
-
-            $bc->execute_plan();  // Execute backup.
-            $results = $bc->get_results(); // Get the file information needed.
-
+			
+			//Create file backup file name
+			$matchers = array('/\s/', '/\//', '/\;/', '/\:/', '/\?/', '/\%/', '/\*/', '/\|/', '/\</', '/\>/');
+			$safeshort = preg_replace($matchers, '-', $obj["course"]->shortname);
+			$suffix = "";
+			/*Brad - I do not want to put the ID Number in, a timestamp is better means of keeping files unique */
+			/* if (empty($obj["course"]->idnumber)) {
+				$suffix = '-ID-'.$obj["course"]->id;
+			} else {
+				$suffix = '-ID-'.$obj["course"]->id.'-IDNUM-'.$obj["course"]->idnumber;
+			} */
+			//Brad - added timestamp to file creation to make unique
+			$archivefile = date("Y-m-d H:i:s")."{$suffix}-{$safeshort}.mbz";
+			
+			//If automated backup has been set, check to see if an automated backup exists
+			$context = context_course::instance($coursetobackup);
+			$fs = get_file_storage();
+			$files = $fs->get_area_files($context->id, 'backup', 'automated', 0, 'timemodified DESC', false);
+			$file = null;
+			if (!isset($files)) //if automated back up does not exist, create one
+			{
+				// Perform Backup.
+				$bc = new backup_controller(backup::TYPE_1COURSE, $coursetobackup, backup::FORMAT_MOODLE, backup::INTERACTIVE_NO, backup::MODE_AUTOMATED, $userdoingthebackup);
+				$bc->execute_plan();  // Execute backup.
+				$results = $bc->get_results(); // Get the file information needed.
+				$file = $results['backup_destination'];
+				//$bc->destroy();
+            	//unset($bc); //this should get done by variable scope???
+				//debugging("NO BACKUP WAS FOUND, NEW BACKUP CREATED ".var_dump($file));
+			} else
+			{
+				$file = array_values($files)[0];
+				//debugging("BACKUP WAS FOUND ".var_dump($file));
+			}
+			
             $config = get_config('backup');
             $dir = $config->backup_auto_destination;
-            $file = $results['backup_destination'];
 
+			//Now copy either the automated back up or the new backup to the archive path
             if (!empty($file)) {
                 $file->copy_content_to($path . '/' . $archivefile);
             } else {
@@ -652,9 +661,6 @@ class tool_coursearchiver_processor {
                     throw new Exception(get_string('errorbackup', 'tool_coursearchiver'));
                 }
             }
-
-            $bc->destroy();
-            unset($bc);
 
             if (file_exists($path . '/' . $archivefile)) { // Make sure file got moved.
                 $role = $DB->get_record('role', array('shortname' => 'editingteacher'));
