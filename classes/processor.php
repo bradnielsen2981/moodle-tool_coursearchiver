@@ -126,13 +126,8 @@ class tool_coursearchiver_processor {
      */
     public function __construct(array $options) {
         if (!isset($options['mode']) || !in_array($options['mode'], array(self::MODE_COURSELIST,
-                                                                          self::MODE_GETEMAILS,
-                                                                          self::MODE_HIDE,
-                                                                          self::MODE_ARCHIVE,
-                                                                          self::MODE_DELETE,
-                                                                          self::MODE_HIDEEMAIL,
-                                                                          self::MODE_ARCHIVEEMAIL,
-                                                                          self::MODE_OPTOUT))) {
+        	self::MODE_GETEMAILS, self::MODE_HIDE, self::MODE_ARCHIVE, self::MODE_DELETE,
+            self::MODE_HIDEEMAIL, self::MODE_ARCHIVEEMAIL, self::MODE_OPTOUT))) {
             throw new coding_exception('Unknown process mode');
         }
 
@@ -162,12 +157,8 @@ class tool_coursearchiver_processor {
         }
 
         if ($outputtype == tool_coursearchiver_tracker::OUTPUT_HTML) {
-            if (!in_array($this->mode, array(self::MODE_HIDE,
-                                             self::MODE_ARCHIVE,
-                                             self::MODE_DELETE,
-                                             self::MODE_HIDEEMAIL,
-                                             self::MODE_ARCHIVEEMAIL,
-                                             self::MODE_OPTOUT))) {
+            if (!in_array($this->mode, array(self::MODE_HIDE, self::MODE_ARCHIVE,
+                self::MODE_DELETE, self::MODE_HIDEEMAIL, self::MODE_ARCHIVEEMAIL, self::MODE_OPTOUT))) {
                 if (empty($mform)) {
                     throw new coding_exception(get_string('errornoform', 'tool_coursearchiver'));
                 } else {
@@ -592,12 +583,31 @@ class tool_coursearchiver_processor {
 		
 	    //TRY TO CREATE OR COPY AUTOMATED BACKUP
         try {
-            //Prepare archive path
-            $archivepath = trim(str_replace(str_split(':*?"<>|'),'',get_config('tool_coursearchiver','coursearchiverpath')),"/\\");
+            // Prepare path.
+            $matchers = array('/\s/', '/\//', '/\;/', '/\:/', '/\?/', '/\%/', '/\*/', '/\|/', '/\</', '/\>/');
+            $safeshort = preg_replace($matchers, '-', $obj["course"]->shortname);
+			$suffix = '-ID-'.$obj["course"]->id;
+			/*Brad - I do not want to put the ID Number in, a timestamp is better means of keeping files unique */
+			/* if (empty($obj["course"]->idnumber)) {
+				$suffix = '-ID-'.$obj["course"]->id;
+			} else {
+				$suffix = '-ID-'.$obj["course"]->id.'-IDNUM-'.$obj["course"]->idnumber;
+			} */
+
+			//BRAD dont know why but the line below causes an error during copy??? 
+			//$archivefile = date("Y-m-d H:i:s") . "{$suffix}-{$safeshort}.mbz";
+            $archivefile = date("Y-m-d-H-i-s") . "{$suffix}-{$safeshort}.mbz";
+            $archivepath = trim(str_replace(str_split(':*?"<>|'),
+                                            '',
+                                            get_config('tool_coursearchiver', 'coursearchiverpath')),
+                                "/\\");
+
             // Check for custom folder.
             $folder = $this->get_archive_folder();
-            // Final full path
+
+            // Final full path of file.
             $path = $CFG->dataroot . '/' . $archivepath . '/' . $folder;
+
             // If the path doesn't exist, make it so!
             if (!is_dir($path)) {
                 umask(0000);
@@ -607,46 +617,30 @@ class tool_coursearchiver_processor {
                 }
             }
 			
-			//Create file backup file name
-			$matchers = array('/\s/', '/\//', '/\;/', '/\:/', '/\?/', '/\%/', '/\*/', '/\|/', '/\</', '/\>/');
-			$safeshort = preg_replace($matchers, '-', $obj["course"]->shortname);
-			$suffix = "";
-			/*Brad - I do not want to put the ID Number in, a timestamp is better means of keeping files unique */
-			/* if (empty($obj["course"]->idnumber)) {
-				$suffix = '-ID-'.$obj["course"]->id;
-			} else {
-				$suffix = '-ID-'.$obj["course"]->id.'-IDNUM-'.$obj["course"]->idnumber;
-			} */
-			//Brad - added timestamp to file creation to make unique
-			$archivefile = date("Y-m-d H:i:s")."{$suffix}-{$safeshort}.mbz";
-			
 			//If automated backup has been set, check to see if an automated backup exists
 			$context = context_course::instance($coursetobackup);
 			$fs = get_file_storage();
 			$files = $fs->get_area_files($context->id, 'backup', 'automated', 0, 'timemodified DESC', false);
 			$file = null;
-			if (!isset($files)) //if automated back up does not exist, create one
+			$bc = null;
+			if (empty($files)) //if automated back up does not exist, create one
 			{
 				// Perform Backup.
 				$bc = new backup_controller(backup::TYPE_1COURSE, $coursetobackup, backup::FORMAT_MOODLE, backup::INTERACTIVE_NO, backup::MODE_AUTOMATED, $userdoingthebackup);
 				$bc->execute_plan();  // Execute backup.
 				$results = $bc->get_results(); // Get the file information needed.
-				$file = $results['backup_destination'];
-				//$bc->destroy();
-            	//unset($bc); //this should get done by variable scope???
-				//debugging("NO BACKUP WAS FOUND, NEW BACKUP CREATED ".var_dump($file));
+				$config = get_config('backup');
+            	$dir = $config->backup_auto_destination;
+            	$file = $results['backup_destination'];
 			} else
 			{
 				$file = array_values($files)[0];
-				//debugging("BACKUP WAS FOUND ".var_dump($file));
 			}
 			
-            $config = get_config('backup');
-            $dir = $config->backup_auto_destination;
 
 			//Now copy either the automated back up or the new backup to the archive path
             if (!empty($file)) {
-                $file->copy_content_to($path . '/' . $archivefile);
+                $file->copy_content_to($path.'/'.$archivefile);
             } else {
                 $config = get_config('backup');
                 $dir = $config->backup_auto_destination;
@@ -661,6 +655,11 @@ class tool_coursearchiver_processor {
                     throw new Exception(get_string('errorbackup', 'tool_coursearchiver'));
                 }
             }
+			
+			if (isset($bc)){
+				$bc->destroy();
+            	unset($bc); //this should get done by variable scope???
+			}
 
             if (file_exists($path . '/' . $archivefile)) { // Make sure file got moved.
                 $role = $DB->get_record('role', array('shortname' => 'editingteacher'));
